@@ -39,3 +39,26 @@
 
 # debug information files
 *.dwo
+
+# IDE and Editor Files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build Directories
+cmake-build-*/
+build/
+out/
+
+# CMake Files
+CMakeUserPresets.json
+
+# Image output files (optional - remove if you want to track them)
+*.jpg
+*.png
+*.bmp
+noisy_output.*
+filtered_output.*
