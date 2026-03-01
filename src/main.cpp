@@ -5,6 +5,8 @@
 #include "noise.h"
 #include "filters.h"
 #include "edge_detection.h"
+#include "histogram.h"
+#include "enhance.h"
 
 using namespace cv;
 using namespace std;
@@ -12,10 +14,10 @@ using namespace std;
 int main() {
     // 1. Load the Original Image
     // check the image path
-    Mat img = imread("test.jpg"); 
+    Mat img = imread("src/low contrast image.jpg"); 
     
     if (img.empty()) {
-        cout << "Error: Could not load image. Make sure 'src/test.jpg' exists." << endl;
+        cout << "Error: Could not load image. Make sure 'src/low contrast image.jpg' exists." << endl;
         return -1;
     }
 
@@ -58,6 +60,17 @@ int main() {
     imshow("5. Prewitt Edges", prewittEdges);
     imshow("6. Roberts Edges", robertsEdges);
     imshow("7. Canny Edges", cannyEdges);
+
+    // --- TASK 4: HISTOGRAM & DISTRIBUTION CURVE ---
+    Mat imageHistogram = drawHistogram(img);
+    imshow("8. Image Histogram & Distribution Curve", imageHistogram);
+
+    // --- TASK 5: NORMALIZE & EQUALIZE ---
+    Mat normalizedImg = applyNormalization(img);
+    Mat equalizedImg = applyEqualization(img); // Outputs a high-contrast grayscale image
+
+    imshow("9. Normalized Image", normalizedImg);
+    imshow("10. Equalized Image", equalizedImg);
 
     cout << "Pipeline complete! Press any key on the image windows to close them..." << endl;
     

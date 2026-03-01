@@ -5,7 +5,7 @@ project(ImageProcessingPipeline)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-set(OpenCV_DIR "C:/msys64/ucrt64/lib/cmake/opencv4")
+# set(OpenCV_DIR "C:/msys64/ucrt64/lib/cmake/opencv4")
 
 find_package(OpenCV REQUIRED)
 
