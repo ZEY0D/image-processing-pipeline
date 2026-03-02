@@ -87,8 +87,13 @@ int main() {
                 result = addSaltAndPepperNoise(img, ratio);
             }
             else if (operation == "gaussian_noise") {
+                double mean = body.value("mean", 0.0);
                 double sigma = body.value("sigma", 25.0);
-                result = addGaussianNoise(img, 0.0, sigma);
+                result = addGaussianNoise(img, mean, sigma);
+            }
+            else if (operation == "uniform_noise") {
+                float alpha = body.value("alpha", 0.1f);
+                result = addUniformNoise(img, alpha);
             }
             // -------- Spatial Filters --------
             else if (operation == "average_filter") {
