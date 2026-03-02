@@ -4,7 +4,6 @@
 #include "base64.h"
 #include "json.hpp"
 
-// Include your existing headers
 #include "noise.h"
 #include "filters.h"
 #include "edge_detection.h"
@@ -29,55 +28,148 @@ Mat base64ToMat(const string& b64) {
     return imdecode(data, IMREAD_COLOR);
 }
 
+// ==================== CORS Helper ====================
+crow::response corsResponse(int code, const string& body = "") {
+    crow::response res(code, body);
+    res.add_header("Access-Control-Allow-Origin",  "*");
+    res.add_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.add_header("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.add_header("Content-Type", "application/json");
+    return res;
+}
+
 // ==================== Main REST API ====================
 int main() {
     crow::SimpleApp app;
 
-    // Endpoint to process image
+    // ------- Preflight (OPTIONS) -------
+    CROW_ROUTE(app, "/process").methods("OPTIONS"_method)([]() {
+        crow::response res(204);
+        res.add_header("Access-Control-Allow-Origin",  "*");
+        res.add_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        res.add_header("Access-Control-Allow-Headers", "Content-Type, Accept");
+        return res;
+    });
+
+    // ------- Main process endpoint -------
     CROW_ROUTE(app, "/process").methods("POST"_method)([](const crow::request& req) {
         try {
             auto body = json::parse(req.body);
-            string operation = body["operation"];
-            Mat img = base64ToMat(body["image"]);
+
+            string operation = body.value("operation", "");
+            if (operation.empty())
+                return corsResponse(400, R"({"error":"Missing 'operation' field"})");
+
+            string imageB64 = body.value("image", "");
+            if (imageB64.empty())
+                return corsResponse(400, R"({"error":"Missing 'image' field"})");
+
+            Mat img = base64ToMat(imageB64);
+            if (img.empty())
+                return corsResponse(400, R"({"error":"Could not decode image — check base64 data"})");
+
             Mat result;
 
-            // ------------------------
-            // Use your existing functions here
-            // ------------------------
+            // -------- Noise --------
             if (operation == "salt_pepper_noise") {
-                float ratio = static_cast<float>(body["ratio"]);
+                float ratio = body.value("ratio", 0.05f);
                 result = addSaltAndPepperNoise(img, ratio);
-            } 
+            }
             else if (operation == "gaussian_noise") {
-                double mean = 0.0;  // default mean
-                double sigma = static_cast<double>(body["sigma"]);
-                result = addGaussianNoise(img, mean, sigma);
+                double sigma = body.value("sigma", 25.0);
+                result = addGaussianNoise(img, 0.0, sigma);
+            }
+            // -------- Spatial Filters --------
+            else if (operation == "average_filter") {
+                int k = body.value("kernel", 3);
+                result = applyLowPassFilter(img, "Average", k);
+            }
+            else if (operation == "gaussian_filter") {
+                int k = body.value("kernel", 3);
+                result = applyLowPassFilter(img, "Gaussian", k);
             }
             else if (operation == "median_filter") {
-                int k = body["kernel"];
+                int k = body.value("kernel", 3);
                 result = applyLowPassFilter(img, "Median", k);
             }
+            // -------- Edge Detection --------
             else if (operation == "sobel") {
-                Mat gray; 
+                Mat gray;
                 cvtColor(img, gray, COLOR_BGR2GRAY);
                 result = edge::applySobel(gray);
             }
-            else if (operation == "canny") {
-                Mat gray; 
+            else if (operation == "prewitt") {
+                Mat gray;
                 cvtColor(img, gray, COLOR_BGR2GRAY);
-                int th1 = body["th1"];
-                int th2 = body["th2"];
+                result = edge::applyPrewitt(gray);
+            }
+            else if (operation == "roberts") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                result = edge::applyRoberts(gray);
+            }
+            else if (operation == "canny") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                int th1 = body.value("th1", 50);
+                int th2 = body.value("th2", 150);
                 result = edge::applyCanny(gray, th1, th2);
             }
-            // Add other operations here if needed
+            // -------- Histogram & Equalization --------
+            else if (operation == "histogram") {
+                // Returns a rendered histogram plot as an image
+                result = hist::plotHistogramsAndCDF(img, "Histogram & CDF", "");
+            }
+            else if (operation == "equalize") {
+                // Equalize each channel individually
+                vector<Mat> channels;
+                split(img, channels);
+                for (auto& ch : channels)
+                    equalizeHist(ch, ch);
+                merge(channels, result);
+            }
+            // -------- Grayscale --------
+            else if (operation == "grayscale") {
+                Mat gray = hist::toGrayscale(img);
+                // Convert back to 3-channel so the frontend can display normally
+                cvtColor(gray, result, COLOR_GRAY2BGR);
+            }
+            // -------- Frequency Domain --------
+            else if (operation == "frequency_lpf") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                float cutoff = body.value("cutoff", 30.0f);
+                Mat filtered = freq::applyLowPassFilter(gray, cutoff);
+                cvtColor(filtered, result, COLOR_GRAY2BGR);
+            }
+            else if (operation == "frequency_hpf") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                float cutoff = body.value("cutoff", 30.0f);
+                Mat filtered = freq::applyHighPassFilter(gray, cutoff);
+                cvtColor(filtered, result, COLOR_GRAY2BGR);
+            }
+            else {
+                json err;
+                err["error"] = "Unknown operation: " + operation;
+                return corsResponse(400, err.dump());
+            }
+
+            if (result.empty())
+                return corsResponse(500, R"({"error":"Processing produced an empty image"})");
 
             json res_json;
             res_json["result"] = matToBase64(result);
-            return crow::response{res_json.dump()};
-        } catch(const std::exception& e) {
-            json res_json;
-            res_json["error"] = e.what();
-            return crow::response{400, res_json.dump()};
+            return corsResponse(200, res_json.dump());
+
+        } catch (const json::parse_error& e) {
+            json err;
+            err["error"] = string("JSON parse error: ") + e.what();
+            return corsResponse(400, err.dump());
+        } catch (const std::exception& e) {
+            json err;
+            err["error"] = string("Processing error: ") + e.what();
+            return corsResponse(500, err.dump());
         }
     });
 
