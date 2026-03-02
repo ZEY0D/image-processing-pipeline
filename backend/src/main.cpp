@@ -28,6 +28,17 @@ Mat base64ToMat(const string& b64) {
     return imdecode(data, IMREAD_COLOR);
 }
 
+// Helper function to convert filter type string to enum
+freq::FilterType stringToFilterType(const string& filterType) {
+    if (filterType == "lowpass") {
+        return freq::FilterType::LOW_PASS;
+    } else if (filterType == "highpass") {
+        return freq::FilterType::HIGH_PASS;
+    } else {
+        return freq::FilterType::NONE;
+    }
+}
+
 // ==================== CORS Helper ====================
 crow::response corsResponse(int code, const string& body = "") {
     crow::response res(code, body);
@@ -78,8 +89,13 @@ int main() {
                 result = addSaltAndPepperNoise(img, ratio);
             }
             else if (operation == "gaussian_noise") {
+                double mean = body.value("mean", 0.0);
                 double sigma = body.value("sigma", 25.0);
-                result = addGaussianNoise(img, 0.0, sigma);
+                result = addGaussianNoise(img, mean, sigma);
+            }
+            else if (operation == "uniform_noise") {
+                float alpha = body.value("alpha", 0.1f);
+                result = addUniformNoise(img, alpha);
             }
             // -------- Spatial Filters --------
             else if (operation == "average_filter") {
@@ -136,21 +152,51 @@ int main() {
                 // Convert back to 3-channel so the frontend can display normally
                 cvtColor(gray, result, COLOR_GRAY2BGR);
             }
-            // -------- Frequency Domain --------
-            else if (operation == "frequency_lpf") {
-                Mat gray;
-                cvtColor(img, gray, COLOR_BGR2GRAY);
-                float cutoff = body.value("cutoff", 30.0f);
-                Mat filtered = freq::applyLowPassFilter(gray, cutoff);
-                cvtColor(filtered, result, COLOR_GRAY2BGR);
-            }
-            else if (operation == "frequency_hpf") {
-                Mat gray;
-                cvtColor(img, gray, COLOR_BGR2GRAY);
-                float cutoff = body.value("cutoff", 30.0f);
-                Mat filtered = freq::applyHighPassFilter(gray, cutoff);
-                cvtColor(filtered, result, COLOR_GRAY2BGR);
-            }
+// -------- Frequency Domain (Single Image) --------
+else if (operation == "frequency_lpf") {
+    Mat gray;
+    cvtColor(img, gray, COLOR_BGR2GRAY);
+    Mat filtered = freq::applyLowPassFilter(gray);
+    cvtColor(filtered, result, COLOR_GRAY2BGR);
+}
+else if (operation == "frequency_hpf") {
+    Mat gray;
+    cvtColor(img, gray, COLOR_BGR2GRAY);
+    Mat filtered = freq::applyHighPassFilter(gray);
+    cvtColor(filtered, result, COLOR_GRAY2BGR);
+}
+// -------- Hybrid Image --------
+else if (operation == "hybrid_image") {
+    // Get second image
+    string image2B64 = body.value("image2", "");
+    if (image2B64.empty()) {
+        return corsResponse(400, R"({"error":"Missing 'image2' field for hybrid image"})");
+    }
+    
+    Mat img2 = base64ToMat(image2B64);
+    if (img2.empty()) {
+        return corsResponse(400, R"({"error":"Could not decode second image"})");
+    }
+    
+    // Get filter parameters
+    string filterType1 = body.value("filterType1", "lowpass");
+    string filterType2 = body.value("filterType2", "highpass");
+    
+    // Convert to enum
+    freq::FilterType ft1 = (filterType1 == "lowpass") ? freq::FilterType::LOW_PASS : 
+                          (filterType1 == "highpass") ? freq::FilterType::HIGH_PASS : 
+                          freq::FilterType::NONE;
+    
+    freq::FilterType ft2 = (filterType2 == "lowpass") ? freq::FilterType::LOW_PASS : 
+                          (filterType2 == "highpass") ? freq::FilterType::HIGH_PASS : 
+                          freq::FilterType::NONE;
+    
+    // Create hybrid image
+    Mat hybrid = freq::createHybridImage(img, img2, ft1, ft2);
+    
+    // Convert back to 3-channel for display
+    cvtColor(hybrid, result, COLOR_GRAY2BGR);
+}
             else {
                 json err;
                 err["error"] = "Unknown operation: " + operation;

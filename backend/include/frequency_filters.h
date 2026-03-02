@@ -30,68 +30,78 @@ namespace freq {
     void fourierShift(std::vector<cv::Mat>& planes);
 
     // =========================================================================
-    // Task 9 — Ideal Low Pass Filter
+    // Task 9 — Frequency Domain Filters
     // =========================================================================
 
     /**
-     * @brief Apply an ideal low-pass filter in the frequency domain.
+     * @brief Apply a low-pass filter in the frequency domain (keep only low frequencies).
      *
-     * Steps performed internally:
-     *  1. Pad the input to the optimal DFT size.
-     *  2. Run cv::dft to obtain the spectrum.
-     *  3. Apply fourierShift to centre the DC component.
-     *  4. Manually generate a circular binary mask:
-     *       H(u,v) = 1  if  D(u,v) <= cutoff
-     *               0  otherwise
-     *     where D(u,v) = sqrt((u - M/2)^2 + (v - N/2)^2).
-     *  5. Manually multiply the complex spectrum by the mask element-wise.
-     *  6. Inverse-shift and apply cv::idft to return to the spatial domain.
-     *  7. Crop back to the original image size.
+     * This filter removes high-frequency components (edges, details) and keeps
+     * the low-frequency components (smooth regions, overall structure).
      *
      * @param grayImage  Single-channel 8-bit input image (CV_8UC1).
-     * @param cutoff     Radius of the pass-band in pixels (frequency domain).
-     * @return           Filtered image (CV_8UC1, same size as input).
+     * @return           Filtered image with low frequencies only (CV_8UC1).
      */
-    cv::Mat applyLowPassFilter(const cv::Mat& grayImage, float cutoff);
-
-    // =========================================================================
-    // Task 9 — Ideal High Pass Filter
-    // =========================================================================
+    cv::Mat applyLowPassFilter(const cv::Mat& grayImage);
 
     /**
-     * @brief Apply an ideal high-pass filter in the frequency domain.
+     * @brief Apply a high-pass filter in the frequency domain (keep only high frequencies).
      *
-     * Identical pipeline to applyLowPassFilter, but the mask is inverted:
-     *   H(u,v) = 0  if  D(u,v) <= cutoff
-     *            1  otherwise
+     * This filter removes low-frequency components (smooth regions) and keeps
+     * the high-frequency components (edges, details, textures). The result
+     * will highlight edges and fine details.
      *
      * @param grayImage  Single-channel 8-bit input image (CV_8UC1).
-     * @param cutoff     Radius of the stop-band in pixels (frequency domain).
-     * @return           Filtered image (CV_8UC1, same size as input).
+     * @return           Filtered image with high frequencies only (edges) (CV_8UC1).
      */
-    cv::Mat applyHighPassFilter(const cv::Mat& grayImage, float cutoff);
+    cv::Mat applyHighPassFilter(const cv::Mat& grayImage);
 
     // =========================================================================
-    // Task 10 — Hybrid Image
+    // Task 10 — Hybrid Image with Filter Options
     // =========================================================================
 
     /**
-     * @brief Create a hybrid image by blending two pre-processed images.
+     * @brief Enum to specify filter type for hybrid image creation
+     */
+    enum class FilterType {
+        NONE,      // No filter applied
+        LOW_PASS,  // Apply low-pass filter (keep low frequencies)
+        HIGH_PASS  // Apply high-pass filter (keep high frequencies/edges)
+    };
+
+    /**
+     * @brief Create a hybrid image by blending two images with frequency filtering.
      *
-     * Accepts any two images (colour or grayscale, already filtered or not).
-     * Each input is automatically converted to grayscale if it is not already.
+     * Accepts any two images (colour or grayscale). Each input is automatically 
+     * converted to grayscale if it is not already. The function applies:
+     * - Low-pass filter to the first image (keeps smooth structure)
+     * - High-pass filter to the second image (keeps edges/details)
+     *
      * If the images differ in size, img2 is resized to match img1.
-     * The two grayscale images are then blended with equal weights (0.5 + 0.5)
+     * The two filtered images are then blended with equal weights (0.5 + 0.5)
      * and the result is normalised to [0, 255].
      *
-     * Apply your own LPF / HPF (or any other processing) to the images
-     * before passing them here — this function does NOT apply any filters.
-     *
-     * @param img1  First input (e.g. low-pass filtered image).
-     * @param img2  Second input (e.g. high-pass filtered image).
+     * @param img1  First input image (will be low-pass filtered).
+     * @param img2  Second input image (will be high-pass filtered).
      * @return      Blended hybrid image (CV_8UC1).
      */
     cv::Mat createHybridImage(const cv::Mat& img1, const cv::Mat& img2);
+
+    /**
+     * @brief Create a hybrid image by blending two images with custom filter options.
+     *
+     * Allows specifying which filter to apply to each image.
+     *
+     * @param img1          First input image.
+     * @param img2          Second input image.
+     * @param filterType1   Filter type to apply to first image.
+     * @param filterType2   Filter type to apply to second image.
+     * @return              Blended hybrid image (CV_8UC1).
+     */
+    cv::Mat createHybridImage(const cv::Mat& img1, 
+                              const cv::Mat& img2,
+                              FilterType filterType1,
+                              FilterType filterType2);
 
 } 
 
