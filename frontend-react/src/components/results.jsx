@@ -9,7 +9,7 @@ function Result({ result }) {
           <img src={`data:image/png;base64,${result}`} alt="Processed" />
         ) : (
           <div className="empty-state">
-            <div className="empty-state-icon">🖼️</div>
+            <div className="empty-state-icon"></div>
             <div className="empty-state-text">No result yet</div>
             <div className="empty-state-subtext">
               Upload an image and select an operation to get started

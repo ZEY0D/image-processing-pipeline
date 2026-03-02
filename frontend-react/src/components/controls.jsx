@@ -105,33 +105,33 @@ function Controls({
       <input type="file" onChange={(e) => handleFileChange(e, setImage2)} />
       
       <label>Operation</label>
-      <select onChange={(e) => setOperation(e.target.value)} value={operation}>
+      <select onChange={handleOperationChange} value={operation}>
         <option value="">Select operation</option>
         <option value="noise">Add Noise</option>
         <option value="filter">Noise Filtering</option>
         <option value="edge">Edge Detection</option>
         <option value="histogram">Histogram</option>
         <option value="equalize">Equalization/Normalization</option>
-        <option value="grayscale">RGB → Grayscale</option>
+        <option value="grayscale">RGB to Grayscale</option>
         <option value="frequency">Hybrid Image (Frequency Mixing)</option>
       </select>
 
       {/* Noise Parameters with Sliders */}
       {operation === 'noise' && (
         <div className="control-section">
-          <h3>🎲 Noise Settings</h3>
+          <h3>Noise Settings</h3>
 
           <label>Noise Type</label>
           <select name="noiseType" onChange={handleParamChange} value={params.noiseType || 'gaussian'}>
             <option value="gaussian">Gaussian Noise</option>
-            <option value="saltpepper">Salt & Pepper Noise</option>
+            <option value="saltpepper">Salt and Pepper Noise</option>
             <option value="uniform">Uniform Noise</option>
           </select>
 
           {/* Gaussian Noise Parameters */}
           {(!params.noiseType || params.noiseType === 'gaussian') && (
             <div className="param-group">
-              <h4>🔔 Gaussian Noise Parameters</h4>
+              <h4>Gaussian Noise Parameters</h4>
 
               <Slider
                 label="Mean"
@@ -160,7 +160,7 @@ function Controls({
           {/* Salt & Pepper Noise Parameters */}
           {params.noiseType === 'saltpepper' && (
             <div className="param-group">
-              <h4>🧂 Salt & Pepper Parameters</h4>
+              <h4>Salt and Pepper Parameters</h4>
 
               <Slider
                 label="Noise Ratio"
@@ -174,7 +174,7 @@ function Controls({
               />
 
               <div className="validation-hint info">
-                ℹ️ Recommended: 0.01 - 0.1 for realistic noise
+                Recommended: 0.01 - 0.1 for realistic noise
               </div>
             </div>
           )}
@@ -182,7 +182,7 @@ function Controls({
           {/* Uniform Noise Parameters */}
           {params.noiseType === 'uniform' && (
             <div className="param-group">
-              <h4>📊 Uniform Noise Parameters</h4>
+              <h4>Uniform Noise Parameters</h4>
 
               <Slider
                 label="Alpha (Intensity)"
@@ -196,7 +196,7 @@ function Controls({
               />
 
               <div className="validation-hint info">
-                ℹ️ Recommended: 0.05 - 0.3 for subtle effect
+                Recommended: 0.05 - 0.3 for subtle effect
               </div>
             </div>
           )}
@@ -204,7 +204,7 @@ function Controls({
           {/* Validation Errors */}
           {noiseValidationErrors.length > 0 && (
             <div className="validation-hint error">
-              ⚠️ {noiseValidationErrors.join(', ')}
+               {noiseValidationErrors.join(', ')}
             </div>
           )}
         </div>
@@ -213,7 +213,7 @@ function Controls({
       {/* Filter Parameters */}
       {operation === 'filter' && (
         <div className="control-section">
-          <h3>🔍 Filter Settings</h3>
+          <h3>Filter Settings</h3>
 
           <label>Filter Type</label>
           <select name="filterType" onChange={handleParamChange} value={params.filterType || 'average'}>
@@ -223,7 +223,7 @@ function Controls({
           </select>
 
           <div className="param-group">
-            <h4>⚙️ Filter Parameters</h4>
+            <h4>Filter Parameters</h4>
 
             <Slider
               label="Kernel Size"
@@ -247,7 +247,7 @@ function Controls({
       {/* Edge Detection Parameters */}
       {operation === 'edge' && (
         <div className="control-section">
-          <h3>📐 Edge Detection Settings</h3>
+          <h3>Edge Detection Settings</h3>
 
           <label>Edge Detection Method</label>
           <select name="edgeType" onChange={handleParamChange} value={params.edgeType || 'sobel'}>
@@ -257,16 +257,39 @@ function Controls({
             <option value="canny">Canny</option>
           </select>
 
-          <label>Threshold (Canny only)</label>
-          <input type="number" name="threshold" min="0" max="255" onChange={handleParamChange} />
-        </>
+          <div className="param-group">
+            <h4>Edge Parameters</h4>
+            
+            <label>Threshold 1 (Low)</label>
+            <input 
+              type="number" 
+              name="threshold" 
+              min="0" 
+              max="255" 
+              value={params.threshold || 50}
+              onChange={handleParamChange} 
+            />
+
+            <label>Threshold 2 (High)</label>
+            <input 
+              type="number" 
+              name="threshold2" 
+              min="0" 
+              max="255" 
+              value={params.threshold2 || 150}
+              onChange={handleParamChange} 
+            />
+          </div>
+        </div>
       )}
 
+      {/* Frequency/Hybrid Parameters */}
       {operation === 'frequency' && (
-        <>
+        <div className="control-section">
+          <h3>Hybrid Image Settings</h3>
+          
           <div className="filter-section">
-            <h3>Image 1 Filter Settings</h3>
-            <label>Filter Type for Image 1</label>
+            <h4>Image 1 Filter Settings</h4>
             <select name="filterType1" onChange={handleParamChange} value={params.filterType1 || 'lowpass'}>
               <option value="none">No Filter</option>
               <option value="lowpass">Low Pass Filter</option>
@@ -275,8 +298,7 @@ function Controls({
           </div>
 
           <div className="filter-section">
-            <h3>Image 2 Filter Settings</h3>
-            <label>Filter Type for Image 2</label>
+            <h4>Image 2 Filter Settings</h4>
             <select name="filterType2" onChange={handleParamChange} value={params.filterType2 || 'highpass'}>
               <option value="none">No Filter</option>
               <option value="lowpass">Low Pass Filter</option>
@@ -284,7 +306,7 @@ function Controls({
             </select>
           </div>
 
-        </>
+        </div>
       )}
 
       {/* Submit Button */}
@@ -299,7 +321,6 @@ function Controls({
           </span>
         ) : (
           <span className="button-content">
-            <span>🚀</span>
             <span>Process Image</span>
           </span>
         )}
@@ -312,4 +333,3 @@ function Controls({
 }
 
 export default Controls;
-
