@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 # --------------------------
 # OpenCV
 # --------------------------
-set(OpenCV_DIR "G:/opencv/build")
+set(OpenCV_DIR "D:/Downloads/opencv/build/x64/vc16/lib")
 find_package(OpenCV REQUIRED)
 
 # --------------------------
@@ -19,7 +19,7 @@ find_package(OpenCV REQUIRED)
 include_directories(
     ${OpenCV_INCLUDE_DIRS}                                           # OpenCV headers
     ${CMAKE_CURRENT_SOURCE_DIR}/include                              # Your include folder
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/asio-1.36.0/asio-1.36.0/include  # Asio headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/asio-asio-1-30-2/asio/include  # Asio headers
 )
 
 # --------------------------
