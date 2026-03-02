@@ -7,7 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # --------------------------
 # OpenCV
 # --------------------------
-set(OpenCV_DIR "D:/Downloads/opencv/build/x64/vc16/lib")
+#set(OpenCV_DIR "C:/Amira/Applications/opencv/build")
+#set(OpenCV_DIR "D:/Downloads/opencv/build/x64/vc16/lib")
+set(OpenCV_DIR "C:/Amira/applications/opencv/build/x64/vc16/lib")
+
 find_package(OpenCV REQUIRED)
 
 include_directories(

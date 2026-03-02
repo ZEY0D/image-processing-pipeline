@@ -28,6 +28,7 @@ function App() {
       case 'noise':
         if (p.noiseType === 'saltpepper') return 'salt_pepper_noise';
         if (p.noiseType === 'gaussian') return 'gaussian_noise';
+        if (p.noiseType === 'uniform') return 'uniform_noise';
         return 'gaussian_noise'; // default
 
       case 'filter':
@@ -67,19 +68,26 @@ function App() {
         operation: backendOperation,
         ratio: parseFloat(params.ratio) || 0.05,
         sigma: parseFloat(params.sigma) || 25,
+        mean: parseFloat(params.mean) || 0,
+        alpha: parseFloat(params.alpha) || 0.1,
         kernel: parseInt(params.kernelSize) || 3,
         th1: parseInt(params.threshold) || 50,
         th2: parseInt(params.threshold2) || 150,
         cutoff: parseFloat(params.cutoff) || 30,
       };
 
+      console.log('Sending operation:', backendOperation);
+      console.log('Payload (without image):', { ...payload, image: '[base64 truncated]' });
+
       // Relative URL — React proxy forwards to http://localhost:18080
       const res = await axios.post('/process', payload, {
         headers: { 'Content-Type': 'application/json' },
       });
+      console.log('Response:', res.data);
       setResult(res.data.result);
     } catch (err) {
       // Show the real error message returned by the backend
+      console.error('Error response:', err?.response?.data);
       const backendMsg = err?.response?.data?.error;
       setError(backendMsg
         ? `Backend error: ${backendMsg}`

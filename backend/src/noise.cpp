@@ -33,3 +33,20 @@ Mat addGaussianNoise(const Mat& input, double mean, double sigma) {
     return output;
 }
 
+// Uniform Noise: 'alpha' controls the intensity of the noise (0.0 to 1.0)
+Mat addUniformNoise(const Mat& input, float alpha) {
+    Mat noise = Mat(input.size(), input.type());
+    randu(noise, 0, 255); // OpenCV built-in for uniform distribution (0-255)
+    noise.convertTo(noise, CV_32F);
+    noise = noise * alpha; // Scale by alpha
+
+    Mat output;
+    Mat input_float;
+    input.convertTo(input_float, CV_32F);
+    add(input_float, noise, output);
+
+    // Clip values to valid range [0, 255]
+    output.convertTo(output, input.type());
+    return output;
+}
+
