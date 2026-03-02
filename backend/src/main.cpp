@@ -31,10 +31,10 @@ Mat base64ToMat(const string& b64) {
 // ==================== CORS Helper ====================
 crow::response corsResponse(int code, const string& body = "") {
     crow::response res(code, body);
-    res.add_header("Access-Control-Allow-Origin",  "*");
-    res.add_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    res.add_header("Access-Control-Allow-Headers", "Content-Type, Accept");
-    res.add_header("Content-Type", "application/json");
+    res.headers.emplace("Access-Control-Allow-Origin",  "*");
+    res.headers.emplace("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.headers.emplace("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.headers.emplace("Content-Type", "application/json");
     return res;
 }
 
@@ -42,12 +42,14 @@ crow::response corsResponse(int code, const string& body = "") {
 int main() {
     crow::SimpleApp app;
 
-    // ------- Preflight (OPTIONS) -------
-    CROW_ROUTE(app, "/process").methods("OPTIONS"_method)([]() {
+    // OPTIONS handler specifically for /process
+    CROW_ROUTE(app, "/process")
+    .methods("OPTIONS"_method)
+    ([]() {
         crow::response res(204);
-        res.add_header("Access-Control-Allow-Origin",  "*");
-        res.add_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-        res.add_header("Access-Control-Allow-Headers", "Content-Type, Accept");
+        res.headers.emplace("Access-Control-Allow-Origin", "*");
+        res.headers.emplace("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+        res.headers.emplace("Access-Control-Allow-Headers", "Content-Type, Accept");
         return res;
     });
 

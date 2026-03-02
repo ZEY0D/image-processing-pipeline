@@ -73,7 +73,7 @@ function App() {
         cutoff: parseFloat(params.cutoff) || 30,
       };
 
-      // Relative URL — React proxy forwards to http://localhost:18080
+      // Proxy (setupProxy.js) forwards /process → http://127.0.0.1:18080/process
       const res = await axios.post('/process', payload, {
         headers: { 'Content-Type': 'application/json' },
       });
