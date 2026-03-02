@@ -44,7 +44,7 @@ function App() {
       case 'histogram': return 'histogram';
       case 'equalize': return 'equalize';
       case 'grayscale': return 'grayscale';
-      case 'frequency': return p.freqType === 'hpf' ? 'frequency_hpf' : 'frequency_lpf';
+      case 'frequency': return 'hybrid_image';
 
       default: return uiOperation;
     }
@@ -55,23 +55,43 @@ function App() {
       setError('Image and operation are required');
       return;
     }
+    
+    // For frequency operation, image2 is required
+    if (operation === 'frequency' && !image2) {
+      setError('Second image is required for frequency mixing');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
     try {
       const imageBase64 = await fileToBase64(image1);
+      let image2Base64 = null;
+      if (image2) {
+        image2Base64 = await fileToBase64(image2);
+      }
+      
       const backendOperation = resolveOperation(operation, params);
 
       const payload = {
         image: imageBase64,
+        image2: image2Base64,
         operation: backendOperation,
         ratio: parseFloat(params.ratio) || 0.05,
         sigma: parseFloat(params.sigma) || 25,
         kernel: parseInt(params.kernelSize) || 3,
         th1: parseInt(params.threshold) || 50,
         th2: parseInt(params.threshold2) || 150,
-        cutoff: parseFloat(params.cutoff) || 30,
+        // For frequency operations - only filter types, no cutoff
+        filterType1: params.filterType1 || 'lowpass',
+        filterType2: params.filterType2 || 'highpass',
       };
+
+      // Remove any undefined values
+      Object.keys(payload).forEach(key => 
+        payload[key] === undefined && delete payload[key]
+      );
 
       // Relative URL — React proxy forwards to http://localhost:18080
       const res = await axios.post('/process', payload, {

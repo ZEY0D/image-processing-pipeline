@@ -28,7 +28,7 @@ function Controls({
       <label>Image 1 (Required)</label>
       <input type="file" onChange={(e) => handleFileChange(e, setImage1)} />
       
-      <label>Image 2 (Optional, for frequency mixing)</label>
+      <label>Image 2 {operation === 'frequency' ? '(Required for frequency mixing)' : '(Optional)'}</label>
       <input type="file" onChange={(e) => handleFileChange(e, setImage2)} />
       
       <label>Operation</label>
@@ -40,7 +40,7 @@ function Controls({
         <option value="histogram">Histogram</option>
         <option value="equalize">Equalization/Normalization</option>
         <option value="grayscale">RGB → Grayscale</option>
-        <option value="frequency">Frequency Mixing</option>
+        <option value="frequency">Hybrid Image (Frequency Mixing)</option>
       </select>
 
       {/* Dynamic parameters example */}
@@ -87,9 +87,34 @@ function Controls({
         </>
       )}
 
+      {operation === 'frequency' && (
+        <>
+          <div className="filter-section">
+            <h3>Image 1 Filter Settings</h3>
+            <label>Filter Type for Image 1</label>
+            <select name="filterType1" onChange={handleParamChange} value={params.filterType1 || 'lowpass'}>
+              <option value="none">No Filter</option>
+              <option value="lowpass">Low Pass Filter</option>
+              <option value="highpass">High Pass Filter</option>
+            </select>
+          </div>
+
+          <div className="filter-section">
+            <h3>Image 2 Filter Settings</h3>
+            <label>Filter Type for Image 2</label>
+            <select name="filterType2" onChange={handleParamChange} value={params.filterType2 || 'highpass'}>
+              <option value="none">No Filter</option>
+              <option value="lowpass">Low Pass Filter</option>
+              <option value="highpass">High Pass Filter</option>
+            </select>
+          </div>
+
+        </>
+      )}
+
       <button
         onClick={handleSubmit}
-        disabled={loading || !image1 || !operation}
+        disabled={loading || !image1 || !operation || (operation === 'frequency' && !image2)}
       >
         {loading ? 'Processing...' : 'Submit'}
       </button>
