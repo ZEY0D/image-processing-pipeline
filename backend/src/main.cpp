@@ -8,6 +8,7 @@
 #include "filters.h"
 #include "edge_detection.h"
 #include "histograms.h"
+#include "enhance.h"
 #include "frequency_filters.h"
 
 using namespace cv;
@@ -26,6 +27,24 @@ Mat base64ToMat(const string& b64) {
     string decoded = base64_decode(b64);
     vector<uchar> data(decoded.begin(), decoded.end());
     return imdecode(data, IMREAD_COLOR);
+}
+
+// Compute grayscale histogram as JSON array of 256 bin counts
+json computeGrayHistogram(const Mat& img) {
+    Mat gray;
+    if (img.channels() == 3)
+        cvtColor(img, gray, COLOR_BGR2GRAY);
+    else
+        gray = img.clone();
+    int histSize = 256;
+    float range[] = {0, 256};
+    const float* histRange[] = {range};
+    Mat hist;
+    calcHist(&gray, 1, 0, Mat(), hist, 1, &histSize, histRange, true, false);
+    json arr = json::array();
+    for (int i = 0; i < 256; i++)
+        arr.push_back((int)hist.at<float>(i));
+    return arr;
 }
 
 // Helper function to convert filter type string to enum
@@ -133,18 +152,63 @@ int main() {
                 int th2 = body.value("th2", 150);
                 result = edge::applyCanny(gray, th1, th2);
             }
-            // -------- Histogram & Equalization --------
+            // -------- Histogram & Distribution Curve --------
             else if (operation == "histogram") {
-                // Returns a rendered histogram plot as an image
-                result = hist::plotHistogramsAndCDF(img, "Histogram & CDF", "");
+                // Compute per-channel (BGR) 256-bin histograms and return as raw arrays
+                vector<Mat> channels;
+                split(img, channels); // 0=B, 1=G, 2=R
+                int histSize = 256;
+                float range[] = {0, 256};
+                const float* histRange[] = {range};
+                auto chanToJson = [&](Mat& ch) {
+                    Mat h;
+                    calcHist(&ch, 1, 0, Mat(), h, 1, &histSize, histRange, true, false);
+                    json arr = json::array();
+                    for (int i = 0; i < 256; i++) arr.push_back((int)h.at<float>(i));
+                    return arr;
+                };
+                json res_json;
+                res_json["histogram_b"] = chanToJson(channels[0]);
+                res_json["histogram_g"] = chanToJson(channels[1]);
+                res_json["histogram_r"] = chanToJson(channels[2]);
+                return corsResponse(200, res_json.dump());
+            }
+            else if (operation == "cdf") {
+                // Use histograms.cpp manually-computed histograms and CDFs
+                hist::Histogram bHist, gHist, rHist;
+                hist::calculateHistograms(img, bHist, gHist, rHist);
+                hist::CDF bCDF = hist::calculateCDF(bHist);
+                hist::CDF gCDF = hist::calculateCDF(gHist);
+                hist::CDF rCDF = hist::calculateCDF(rHist);
+
+                auto cdfToJson = [](const hist::CDF& c) {
+                    json arr = json::array();
+                    for (int i = 0; i < 256; i++) arr.push_back(c[i]);
+                    return arr;
+                };
+
+                json res_json;
+                res_json["cdf_r"] = cdfToJson(rCDF);
+                res_json["cdf_g"] = cdfToJson(gCDF);
+                res_json["cdf_b"] = cdfToJson(bCDF);
+                return corsResponse(200, res_json.dump());
+            }
+            // -------- Normalize & Equalize --------
+            else if (operation == "normalize") {
+                result = applyNormalization(img);
+                // plain result, no histogram
             }
             else if (operation == "equalize") {
-                // Equalize each channel individually
-                vector<Mat> channels;
-                split(img, channels);
-                for (auto& ch : channels)
-                    equalizeHist(ch, ch);
-                merge(channels, result);
+                json hist_before = computeGrayHistogram(img);
+                result = applyEqualization(img);
+                if (result.channels() == 1)
+                    cvtColor(result, result, COLOR_GRAY2BGR);
+                json hist_after  = computeGrayHistogram(result);
+                json res_json;
+                res_json["result"]           = matToBase64(result);
+                res_json["histogram_before"] = hist_before;
+                res_json["histogram_after"]  = hist_after;
+                return corsResponse(200, res_json.dump());
             }
             // -------- Grayscale --------
             else if (operation == "grayscale") {

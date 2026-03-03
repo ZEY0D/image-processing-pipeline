@@ -57,31 +57,18 @@ const validateNoiseParams = (noiseType, params) => {
 };
 
 function Controls({
-  image1, setImage1,
-  image2, setImage2,
+  activeImage, setActiveImage,
   operation, setOperation,
   params, setParams,
   handleSubmit,
   loading,
-  error
+  error,
+  image1,
+  image2,
 }) {
 
-  const handleFileChange = (e, setImage) => {
-    setImage(e.target.files[0]);
-  };
-
   const handleParamChange = (e) => {
-    setParams({
-      ...params,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleSliderChange = (e) => {
-    setParams({
-      ...params,
-      [e.target.name]: e.target.value
-    });
+    setParams({ ...params, [e.target.name]: e.target.value });
   };
 
   const handleOperationChange = (e) => {
@@ -97,21 +84,26 @@ function Controls({
   return (
     <div className="controls">
       <h2>Controls</h2>
-      
-      <label>Image 1 (Required)</label>
-      <input type="file" onChange={(e) => handleFileChange(e, setImage1)} />
-      
-      <label>Image 2 {operation === 'frequency' ? '(Required for frequency mixing)' : '(Optional)'}</label>
-      <input type="file" onChange={(e) => handleFileChange(e, setImage2)} />
-      
+
+      {/* Active image selector */}
+      <div className="control-section">
+        <h3>Apply operation to</h3>
+        <select value={activeImage} onChange={(e) => setActiveImage(e.target.value)}>
+          <option value="1">Image 1{image1 ? '' : ' (not uploaded)'}</option>
+          <option value="2">Image 2{image2 ? '' : ' (not uploaded)'}</option>
+        </select>
+      </div>
+
       <label>Operation</label>
       <select onChange={handleOperationChange} value={operation}>
         <option value="">Select operation</option>
         <option value="noise">Add Noise</option>
         <option value="filter">Noise Filtering</option>
         <option value="edge">Edge Detection</option>
-        <option value="histogram">Histogram</option>
-        <option value="equalize">Equalization/Normalization</option>
+        <option value="histogram">Histogram (RGB)</option>
+        <option value="cdf">Distribution Curve (CDF)</option>
+        <option value="normalize">Normalize</option>
+        <option value="equalize">Equalize</option>
         <option value="grayscale">RGB to Grayscale</option>
         <option value="frequency">Hybrid Image (Frequency Mixing)</option>
       </select>
@@ -137,7 +129,7 @@ function Controls({
                 label="Mean"
                 name="mean"
                 value={params.mean || 0}
-                onChange={handleSliderChange}
+                onChange={handleParamChange}
                 min={-50}
                 max={50}
                 step={1}
@@ -148,7 +140,7 @@ function Controls({
                 label="Sigma (Std Dev)"
                 name="sigma"
                 value={params.sigma || 25}
-                onChange={handleSliderChange}
+                onChange={handleParamChange}
                 min={0}
                 max={100}
                 step={1}
@@ -166,7 +158,7 @@ function Controls({
                 label="Noise Ratio"
                 name="ratio"
                 value={params.ratio || 0.05}
-                onChange={handleSliderChange}
+                onChange={handleParamChange}
                 min={0}
                 max={0.5}
                 step={0.01}
@@ -188,7 +180,7 @@ function Controls({
                 label="Alpha (Intensity)"
                 name="alpha"
                 value={params.alpha || 0.1}
-                onChange={handleSliderChange}
+                onChange={handleParamChange}
                 min={0}
                 max={1}
                 step={0.05}
@@ -204,7 +196,7 @@ function Controls({
           {/* Validation Errors */}
           {noiseValidationErrors.length > 0 && (
             <div className="validation-hint error">
-               {noiseValidationErrors.join(', ')}
+              {noiseValidationErrors.join(', ')}
             </div>
           )}
         </div>
@@ -259,25 +251,25 @@ function Controls({
 
           <div className="param-group">
             <h4>Edge Parameters</h4>
-            
+
             <label>Threshold 1 (Low)</label>
-            <input 
-              type="number" 
-              name="threshold" 
-              min="0" 
-              max="255" 
+            <input
+              type="number"
+              name="threshold"
+              min="0"
+              max="255"
               value={params.threshold || 50}
-              onChange={handleParamChange} 
+              onChange={handleParamChange}
             />
 
             <label>Threshold 2 (High)</label>
-            <input 
-              type="number" 
-              name="threshold2" 
-              min="0" 
-              max="255" 
+            <input
+              type="number"
+              name="threshold2"
+              min="0"
+              max="255"
               value={params.threshold2 || 150}
-              onChange={handleParamChange} 
+              onChange={handleParamChange}
             />
           </div>
         </div>
@@ -287,7 +279,7 @@ function Controls({
       {operation === 'frequency' && (
         <div className="control-section">
           <h3>Hybrid Image Settings</h3>
-          
+
           <div className="filter-section">
             <h4>Image 1 Filter Settings</h4>
             <select name="filterType1" onChange={handleParamChange} value={params.filterType1 || 'lowpass'}>

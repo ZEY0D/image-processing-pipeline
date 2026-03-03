@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # --------------------------
 # OpenCV
 # --------------------------
-set(OpenCV_DIR "D:/Downloads/opencv/build")
+set(OpenCV_DIR "D:/Downloads/opencv/build/x64/vc16/lib")
 find_package(OpenCV REQUIRED)
 
 include_directories(
@@ -22,6 +22,8 @@ set(SOURCES
     src/filters.cpp
     src/edge_detection.cpp
     src/histograms.cpp
+    src/histogram_draw.cpp
+    src/enhance.cpp
     src/frequency_filters.cpp
     src/base64.cpp
 )
