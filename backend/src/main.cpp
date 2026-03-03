@@ -245,6 +245,8 @@ else if (operation == "hybrid_image") {
     // Get filter parameters
     string filterType1 = body.value("filterType1", "lowpass");
     string filterType2 = body.value("filterType2", "highpass");
+    double scale1 = body.value("scale1", -1.0);
+    double scale2 = body.value("scale2", -1.0);
     
     // Convert to enum
     freq::FilterType ft1 = (filterType1 == "lowpass") ? freq::FilterType::LOW_PASS : 
@@ -256,7 +258,7 @@ else if (operation == "hybrid_image") {
                           freq::FilterType::NONE;
     
     // Create hybrid image
-    Mat hybrid = freq::createHybridImage(img, img2, ft1, ft2);
+    Mat hybrid = freq::createHybridImage(img, img2, ft1, ft2, scale1, scale2);
     
     // Convert back to 3-channel for display
     cvtColor(hybrid, result, COLOR_GRAY2BGR);

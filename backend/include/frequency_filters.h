@@ -103,6 +103,27 @@ namespace freq {
                               FilterType filterType1,
                               FilterType filterType2);
 
+    /**
+     * @brief Create a hybrid image by blending two images with custom filter options and scale control.
+     *
+     * Allows specifying which filter to apply to each image, and the scale (cutoff
+     * radius as a fraction of the max frequency distance) for each filter.
+     *
+     * @param img1          First input image.
+     * @param img2          Second input image.
+     * @param filterType1   Filter type to apply to first image.
+     * @param filterType2   Filter type to apply to second image.
+     * @param scale1        Cutoff scale for first image filter (0.0–1.0; <=0 uses default).
+     * @param scale2        Cutoff scale for second image filter (0.0–1.0; <=0 uses default).
+     * @return              Blended hybrid image (CV_8UC1).
+     */
+    cv::Mat createHybridImage(const cv::Mat& img1, 
+                              const cv::Mat& img2,
+                              FilterType filterType1,
+                              FilterType filterType2,
+                              double scale1,
+                              double scale2);
+
 } 
 
 #endif // FREQUENCY_FILTERS_H

@@ -138,7 +138,7 @@ static void multiplyComplexByRealMask(cv::Mat& complexMat, const cv::Mat& realMa
 // -----------------------------------------------------------------------------
 // Build frequency mask
 // -----------------------------------------------------------------------------
-static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
+static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass, double scale = -1.0)
 {
     cv::Mat mask(rows, cols, CV_32FC1);
 
@@ -150,7 +150,9 @@ static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
     
     if (isLowPass) {
         // Low-pass: keep only very low frequencies
-        const double cutoffDist = maxDist * 0.15; // Increased a bit for more structure
+        // scale controls the cutoff as a fraction of maxDist (default 0.15)
+        const double cutoffFrac = (scale > 0.0 && scale <= 1.0) ? scale : 0.15;
+        const double cutoffDist = maxDist * cutoffFrac;
         const double transitionWidth = cutoffDist * 0.3;
         
         for (int u = 0; u < rows; ++u) {
@@ -173,7 +175,9 @@ static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
         }
     } else {
         // High-pass: keep high frequencies, but with a smoother transition
-        const double stopDist = maxDist * 0.25; // Block more low frequencies
+        // scale controls the cutoff as a fraction of maxDist (default 0.25)
+        const double stopFrac = (scale > 0.0 && scale <= 1.0) ? scale : 0.25;
+        const double stopDist = maxDist * stopFrac;
         const double transitionWidth = stopDist * 0.5;
         
         for (int u = 0; u < rows; ++u) {
@@ -229,7 +233,7 @@ void fourierShift(std::vector<cv::Mat>& planes)
 // Internal: core DFT → filter mask → iDFT pipeline
 // =============================================================================
 
-static cv::Mat applyFrequencyFilterFloat(const cv::Mat& floatGray, bool isLowPass)
+static cv::Mat applyFrequencyFilterFloat(const cv::Mat& floatGray, bool isLowPass, double scale = -1.0)
 {
     CV_Assert(floatGray.type() == CV_32FC1);
 
@@ -258,7 +262,8 @@ static cv::Mat applyFrequencyFilterFloat(const cv::Mat& floatGray, bool isLowPas
     // Step 4: Build frequency mask
     cv::Mat mask = buildFrequencyMask(complexSpectrum.rows,
                                       complexSpectrum.cols,
-                                      isLowPass);
+                                      isLowPass,
+                                      scale);
 
     // Step 5: Apply mask
     multiplyComplexByRealMask(complexSpectrum, mask);
@@ -307,13 +312,24 @@ cv::Mat createHybridImage(const cv::Mat& img1, const cv::Mat& img2)
 {
     return createHybridImage(img1, img2, 
                             FilterType::LOW_PASS, 
-                            FilterType::HIGH_PASS);
+                            FilterType::HIGH_PASS,
+                            -1.0, -1.0);
 }
 
 cv::Mat createHybridImage(const cv::Mat& img1, 
                           const cv::Mat& img2,
                           FilterType filterType1,
                           FilterType filterType2)
+{
+    return createHybridImage(img1, img2, filterType1, filterType2, -1.0, -1.0);
+}
+
+cv::Mat createHybridImage(const cv::Mat& img1, 
+                          const cv::Mat& img2,
+                          FilterType filterType1,
+                          FilterType filterType2,
+                          double scale1,
+                          double scale2)
 {
     if (img1.empty() || img2.empty()) {
         throw std::invalid_argument("createHybridImage: one or both input images are empty.");
@@ -333,10 +349,10 @@ cv::Mat createHybridImage(const cv::Mat& img1,
     
     switch (filterType1) {
         case FilterType::LOW_PASS:
-            processed1 = applyFrequencyFilterFloat(float1, true);
+            processed1 = applyFrequencyFilterFloat(float1, true, scale1);
             break;
         case FilterType::HIGH_PASS:
-            processed1 = applyFrequencyFilterFloat(float1, false);
+            processed1 = applyFrequencyFilterFloat(float1, false, scale1);
             break;
         case FilterType::NONE:
         default:
@@ -346,10 +362,10 @@ cv::Mat createHybridImage(const cv::Mat& img1,
     
     switch (filterType2) {
         case FilterType::LOW_PASS:
-            processed2 = applyFrequencyFilterFloat(float2, true);
+            processed2 = applyFrequencyFilterFloat(float2, true, scale2);
             break;
         case FilterType::HIGH_PASS:
-            processed2 = applyFrequencyFilterFloat(float2, false);
+            processed2 = applyFrequencyFilterFloat(float2, false, scale2);
             break;
         case FilterType::NONE:
         default:

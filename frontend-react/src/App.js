@@ -135,6 +135,8 @@ function App() {
         th2: parseInt(params.threshold2) || 150,
         filterType1: params.filterType1 || 'lowpass',
         filterType2: params.filterType2 || 'highpass',
+        scale1: params.scale1 !== undefined ? parseFloat(params.scale1) : -1.0,
+        scale2: params.scale2 !== undefined ? parseFloat(params.scale2) : -1.0,
       };
       Object.keys(payload).forEach(k => payload[k] == null && delete payload[k]);
 

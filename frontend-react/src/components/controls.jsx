@@ -224,20 +224,44 @@ function Controls({
 
           <div className="filter-section">
             <h4>Image 1 Filter Settings</h4>
-            <select name="filterType1" onChange={handleParamChange} value={params.filterType1 || 'lowpass'}>
+            <select name="filterType1" onChange={(e) => {
+              setParams({ ...params, filterType1: e.target.value, scale1: undefined });
+            }} value={params.filterType1 || 'lowpass'}>
               <option value="none">No Filter</option>
               <option value="lowpass">Low Pass Filter</option>
               <option value="highpass">High Pass Filter</option>
             </select>
+            {(params.filterType1 === 'lowpass' || !params.filterType1) && (
+              <Slider label="Low Pass Scale" name="scale1"
+                value={params.scale1 !== undefined ? params.scale1 : 0.15 /* matches backend default */}
+                onChange={handleParamChange} min={0.05} max={0.5} step={0.01} />
+            )}
+            {params.filterType1 === 'highpass' && (
+              <Slider label="High Pass Scale" name="scale1"
+                value={params.scale1 !== undefined ? params.scale1 : 0.25 /* matches backend default */}
+                onChange={handleParamChange} min={0.05} max={0.5} step={0.01} />
+            )}
           </div>
 
           <div className="filter-section">
             <h4>Image 2 Filter Settings</h4>
-            <select name="filterType2" onChange={handleParamChange} value={params.filterType2 || 'highpass'}>
+            <select name="filterType2" onChange={(e) => {
+              setParams({ ...params, filterType2: e.target.value, scale2: undefined });
+            }} value={params.filterType2 || 'highpass'}>
               <option value="none">No Filter</option>
               <option value="lowpass">Low Pass Filter</option>
               <option value="highpass">High Pass Filter</option>
             </select>
+            {params.filterType2 === 'lowpass' && (
+              <Slider label="Low Pass Scale" name="scale2"
+                value={params.scale2 !== undefined ? params.scale2 : 0.15 /* matches backend default */}
+                onChange={handleParamChange} min={0.05} max={0.5} step={0.01} />
+            )}
+            {(params.filterType2 === 'highpass' || !params.filterType2) && (
+              <Slider label="High Pass Scale" name="scale2"
+                value={params.scale2 !== undefined ? params.scale2 : 0.25 /* matches backend default */}
+                onChange={handleParamChange} min={0.05} max={0.5} step={0.01} />
+            )}
           </div>
 
         </div>
