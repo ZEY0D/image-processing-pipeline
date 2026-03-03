@@ -1,29 +1,15 @@
 import React from 'react';
 
-// Slider component with value display and validation
-const Slider = ({ label, name, value, onChange, min, max, step, unit = '', hint }) => {
+const Slider = ({ label, name, value, onChange, min, max, step, unit = '' }) => {
   const displayValue = value !== undefined && value !== '' ? value : (min + max) / 2;
-
   return (
     <div className="slider-container">
       <div className="slider-header">
         <span className="slider-label">{label}</span>
         <span className="slider-value">{displayValue}{unit}</span>
       </div>
-      <input
-        type="range"
-        name={name}
-        min={min}
-        max={max}
-        step={step}
-        value={displayValue}
-        onChange={onChange}
-      />
-      <div className="slider-hints">
-        <span>{min}{unit}</span>
-        <span>{max}{unit}</span>
-      </div>
-      {hint && <div className="validation-hint info">ℹ️ {hint}</div>}
+      <input type="range" name={name} min={min} max={max} step={step}
+        value={displayValue} onChange={onChange} />
     </div>
   );
 };
@@ -100,12 +86,21 @@ function Controls({
         <option value="noise">Add Noise</option>
         <option value="filter">Noise Filtering</option>
         <option value="edge">Edge Detection</option>
-        <option value="histogram">Histogram (RGB)</option>
-        <option value="cdf">Distribution Curve (CDF)</option>
         <option value="normalize">Normalize</option>
         <option value="equalize">Equalize</option>
         <option value="grayscale">RGB to Grayscale</option>
         <option value="frequency">Hybrid Image (Frequency Mixing)</option>
+      </select>
+
+      {/* Analysis Tools — separate dropdown */}
+      <label style={{ marginTop: 12 }}>Histogram / CDF</label>
+      <select
+        value={['histogram', 'cdf'].includes(operation) ? operation : ''}
+        onChange={(e) => { handleOperationChange(e); }}
+      >
+        <option value="">Select analysis</option>
+        <option value="histogram">Histogram (RGB)</option>
+        <option value="cdf">Distribution Curve (CDF)</option>
       </select>
 
       {/* Noise Parameters with Sliders */}
@@ -125,27 +120,11 @@ function Controls({
             <div className="param-group">
               <h4>Gaussian Noise Parameters</h4>
 
-              <Slider
-                label="Mean"
-                name="mean"
-                value={params.mean || 0}
-                onChange={handleParamChange}
-                min={-50}
-                max={50}
-                step={1}
-                hint="Center of the noise distribution (typically 0)"
-              />
+              <Slider label="Mean" name="mean" value={params.mean || 0}
+                onChange={handleParamChange} min={-50} max={50} step={1} />
 
-              <Slider
-                label="Sigma (Std Dev)"
-                name="sigma"
-                value={params.sigma || 25}
-                onChange={handleParamChange}
-                min={0}
-                max={100}
-                step={1}
-                hint="Higher values = more noise intensity"
-              />
+              <Slider label="Sigma (Std Dev)" name="sigma" value={params.sigma || 25}
+                onChange={handleParamChange} min={0} max={100} step={1} />
             </div>
           )}
 
@@ -154,20 +133,8 @@ function Controls({
             <div className="param-group">
               <h4>Salt and Pepper Parameters</h4>
 
-              <Slider
-                label="Noise Ratio"
-                name="ratio"
-                value={params.ratio || 0.05}
-                onChange={handleParamChange}
-                min={0}
-                max={0.5}
-                step={0.01}
-                hint="Probability of a pixel being affected (0-50%)"
-              />
-
-              <div className="validation-hint info">
-                Recommended: 0.01 - 0.1 for realistic noise
-              </div>
+              <Slider label="Noise Ratio" name="ratio" value={params.ratio || 0.05}
+                onChange={handleParamChange} min={0} max={0.5} step={0.01} />
             </div>
           )}
 
@@ -176,29 +143,12 @@ function Controls({
             <div className="param-group">
               <h4>Uniform Noise Parameters</h4>
 
-              <Slider
-                label="Alpha (Intensity)"
-                name="alpha"
-                value={params.alpha || 0.1}
-                onChange={handleParamChange}
-                min={0}
-                max={1}
-                step={0.05}
-                hint="Noise intensity multiplier (0 = none, 1 = maximum)"
-              />
-
-              <div className="validation-hint info">
-                Recommended: 0.05 - 0.3 for subtle effect
-              </div>
+              <Slider label="Alpha (Intensity)" name="alpha" value={params.alpha || 0.1}
+                onChange={handleParamChange} min={0} max={1} step={0.05} />
             </div>
           )}
 
-          {/* Validation Errors */}
-          {noiseValidationErrors.length > 0 && (
-            <div className="validation-hint error">
-              {noiseValidationErrors.join(', ')}
-            </div>
-          )}
+
         </div>
       )}
 
@@ -217,21 +167,13 @@ function Controls({
           <div className="param-group">
             <h4>Filter Parameters</h4>
 
-            <Slider
-              label="Kernel Size"
-              name="kernelSize"
-              value={params.kernelSize || 3}
+            <Slider label="Kernel Size" name="kernelSize" value={params.kernelSize || 3}
               onChange={(e) => {
-                // Ensure kernel size is odd
                 let val = parseInt(e.target.value);
                 if (val % 2 === 0) val = val + 1;
                 setParams({ ...params, kernelSize: val });
               }}
-              min={3}
-              max={15}
-              step={2}
-              hint="Must be odd number (3, 5, 7, etc.)"
-            />
+              min={3} max={15} step={2} />
           </div>
         </div>
       )}
