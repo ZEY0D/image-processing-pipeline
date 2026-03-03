@@ -12,9 +12,24 @@ function saveBase64Image(base64, filename = 'output.png') {
 }
 
 function saveCanvasFromContainer(containerRef, filename = 'plot.png') {
-    const canvas = containerRef.current?.querySelector('canvas');
-    if (!canvas) return;
-    canvas.toBlob(blob => {
+    const canvases = Array.from(containerRef.current?.querySelectorAll('canvas') ?? []);
+    if (canvases.length === 0) return;
+
+    const GAP = 8;
+    const totalW = Math.max(...canvases.map(c => c.width));
+    const totalH = canvases.reduce((sum, c) => sum + c.height, 0) + GAP * (canvases.length - 1);
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = totalW;
+    offscreen.height = totalH;
+    const ctx = offscreen.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, totalW, totalH);
+
+    let y = 0;
+    canvases.forEach(c => { ctx.drawImage(c, 0, y); y += c.height + GAP; });
+
+    offscreen.toBlob(blob => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = filename; a.click();
@@ -56,15 +71,12 @@ function UploadSlot({ label, preview, onUpload }) {
 }
 
 /* ─── Output slot ──────────────────────────────────────────────────────────── */
-function OutputSlot({ label, histEntry, chartEntry }) {
-    const containerRef = useRef();
+function OutputSlot({ label, histEntry, chartEntry, histAfter, containerRef }) {
     // chartEntry is always the most recent action (cleared by any subsequent edit op)
     const rgbHist = chartEntry?.rgbHist ?? null;
     const cdfData = chartEntry?.cdfData ?? null;
     const isChart = !!(rgbHist || cdfData);
     const result = isChart ? null : (histEntry?.result ?? null);
-    const histB = isChart ? null : (histEntry?.histBefore ?? null);
-    const histA = isChart ? null : (histEntry?.histAfter ?? null);
     const hasContent = result || rgbHist || cdfData;
 
 
@@ -87,29 +99,8 @@ function OutputSlot({ label, histEntry, chartEntry }) {
                 )}
             </div>
 
-            {/* ── Save button ── */}
-            {hasContent && (
-                <button className="save-btn"
-                    onClick={() => isChart
-                        ? saveCanvasFromContainer(containerRef, `${label.replace(' ', '_')}_plot.png`)
-                        : saveBase64Image(result, `${label.replace(' ', '_')}_output.png`)
-                    }>
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    {isChart ? 'Save Plot' : 'Save Output'}
-                </button>
-            )}
-
-            {/* Equalize grayscale histograms */}
-            {(histB || histA) && (
-                <div className="histogram-row">
-                    <div className="histogram-side">{histB && <Histogram data={histB} title="BEFORE" />}</div>
-                    <div className="histogram-arrow-spacer" />
-                    <div className="histogram-side">{histA && <Histogram data={histA} title="AFTER" />}</div>
-                </div>
-            )}
+            {/* AFTER histogram aligned under the output slot */}
+            {histAfter && <Histogram data={histAfter} title="AFTER" />}
         </div>
     );
 }
@@ -126,9 +117,9 @@ function Arrow() {
 }
 
 /* ─── History breadcrumb ───────────────────────────────────────────────────── */
-function HistoryBar({ history, chartResult, onUndo, onReset }) {
+function HistoryBar({ history, chartResult, onUndo, onReset, onSave, saveLabel }) {
     const hasHistory = history.length > 0;
-    if (!hasHistory) return null;
+    if (!hasHistory && !chartResult) return null;
     return (
         <div className="history-bar">
             <div className="history-breadcrumb">
@@ -141,7 +132,7 @@ function HistoryBar({ history, chartResult, onUndo, onReset }) {
                 ))}
                 {chartResult && (
                     <>
-                        <span className="history-arrow">·</span>
+                        {hasHistory && <span className="history-arrow">·</span>}
                         <span className="history-step" style={{ background: '#f3f0ff', color: '#7c3aed' }}>
                             {chartResult.opLabel}
                         </span>
@@ -149,6 +140,16 @@ function HistoryBar({ history, chartResult, onUndo, onReset }) {
                 )}
             </div>
             <div className="history-actions">
+                {onSave && (
+                    <button className="hist-btn save-btn-inline" onClick={onSave} title={saveLabel}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        {saveLabel}
+                    </button>
+                )}
+                <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
                 <button className="hist-btn undo-btn" onClick={onUndo}>↩ Undo</button>
                 <button className="hist-btn reset-btn" onClick={onReset}>✕ Reset</button>
             </div>
@@ -156,41 +157,59 @@ function HistoryBar({ history, chartResult, onUndo, onReset }) {
     );
 }
 
-/* ─── One image row ────────────────────────────────────────────────────────── */
 function ImageRow({ label, preview, history, chartResult, onUpload, onUndo, onReset, operation }) {
+    const containerRef = useRef();
     const current = history.at(-1) ?? null;
+    const isChart = !!(chartResult?.rgbHist || chartResult?.cdfData);
+
+    // histBefore under input slot, histAfter in output column
+    const histBefore = isChart ? null : (current?.histBefore ?? null);
+    const histAfter = isChart ? null : (current?.histAfter ?? null);
 
     // For analysis ops, show last edited image in input slot
     const ANALYSIS = ['histogram', 'cdf'];
     const lastResult = ANALYSIS.includes(operation) ? [...history].reverse().find(h => h.result) : null;
     const effectivePreview = lastResult ? `data:image/png;base64,${lastResult.result}` : preview;
 
-    // The output slot shows chart if that's what's most recent, fallback to history result
-    const showChart = chartResult && !current; // show chart when no post-chart editing has happened
-    // Actually show whichever is more recent: if chartResult exists show it in output, result shows in right too
-    // Strategy: output slot shows histEntry=current, chartEntry=chartResult always
-    // The OutputSlot decides priority: result > rgbHist > cdfData
+    const hasSave = !!(current?.result || chartResult?.rgbHist || chartResult?.cdfData);
+    const handleSave = () => {
+        if (!hasSave) return;
+        if (isChart) saveCanvasFromContainer(containerRef, `${label.replace(' ', '_')}_plot.png`);
+        else saveBase64Image(current.result, `${label.replace(' ', '_')}_output.png`);
+    };
 
     return (
         <div className="image-row">
             <div className="image-row-label">{label}</div>
             <div className="image-row-panels">
-                <UploadSlot label="Click or drop to upload" preview={effectivePreview} onUpload={onUpload} />
+                {/* Input column — upload slot + BEFORE histogram below */}
+                <div className="input-col">
+                    <UploadSlot label="Click or drop to upload" preview={effectivePreview} onUpload={onUpload} />
+                    {histBefore && <Histogram data={histBefore} title="BEFORE" />}
+                </div>
                 <Arrow />
-                <OutputSlot label={label} histEntry={current} chartEntry={chartResult} />
+                {/* Output column — slot + AFTER histogram below */}
+                <OutputSlot label={label} histEntry={current} chartEntry={chartResult} histAfter={histAfter} containerRef={containerRef} />
             </div>
-            <HistoryBar history={history} chartResult={chartResult} onUndo={onUndo} onReset={onReset} />
+            <HistoryBar
+                history={history} chartResult={chartResult}
+                onUndo={onUndo} onReset={onReset}
+                onSave={hasSave ? handleSave : null}
+                saveLabel={isChart ? 'Save Plot' : 'Save Output'}
+            />
         </div>
     );
 }
 
 /* ─── Hybrid layout ────────────────────────────────────────────────────────── */
 function HybridLayout({ preview1, onUpload1, preview2, onUpload2, history1, history2 }) {
+    const containerRef = useRef();
     const result1 = [...history1].reverse().find(h => h.result);
     const result2 = [...history2].reverse().find(h => h.result);
     const effPrev1 = result1 ? `data:image/png;base64,${result1.result}` : preview1;
     const effPrev2 = result2 ? `data:image/png;base64,${result2.result}` : preview2;
     const hybridEntry = history1.at(-1) ?? history2.at(-1) ?? null;
+
     return (
         <div className="hybrid-layout">
             <div className="hybrid-inputs">
@@ -200,7 +219,20 @@ function HybridLayout({ preview1, onUpload1, preview2, onUpload2, history1, hist
                 <UploadSlot label="Click or drop Image 2" preview={effPrev2} onUpload={onUpload2} />
             </div>
             <Arrow />
-            <OutputSlot label="Hybrid" histEntry={hybridEntry} chartEntry={null} />
+            <div className="output-col">
+                <OutputSlot label="Hybrid" histEntry={hybridEntry} chartEntry={null} containerRef={containerRef} />
+                {hybridEntry?.result && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                        <button className="hist-btn save-btn-inline" onClick={() => saveBase64Image(hybridEntry.result, 'Hybrid_output.png')} title="Save Output">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Save Output
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
