@@ -28,6 +28,9 @@ function App() {
   const [chartResult1, setChartResult1] = useState(null); // { rgbHist, cdfData, opLabel }
   const [chartResult2, setChartResult2] = useState(null);
 
+  // Dedicated state for Hybrid operation output so it doesn't pollute history
+  const [hybridResult, setHybridResult] = useState(null);
+
   const [operation, setOperation] = useState('');
   const [params, setParams] = useState({});
   const [activeImage, setActiveImage] = useState('1');
@@ -141,7 +144,10 @@ function App() {
 
       const opLabel = OP_LABELS[operation] || operation;
 
-      if (ANALYSIS_OPS.has(operation)) {
+      if (operation === 'frequency') {
+        // Hybrid op — store completely separately from history
+        setHybridResult(res.data.result || null);
+      } else if (ANALYSIS_OPS.has(operation)) {
         // Chart-only ops — store separately, don't touch history
         const chartEntry = {
           opLabel,
@@ -155,7 +161,7 @@ function App() {
         if (activeImage === '1') setChartResult1(chartEntry);
         else setChartResult2(chartEntry);
       } else {
-        // Image-producing ops — push to history, clear chart result for this slot
+        // Image-producing ops (filters, edge, equalize etc) — push to history, clear chart result for this slot
         const entry = {
           opLabel,
           result: res.data.result || null,
@@ -205,6 +211,7 @@ function App() {
           onUpload1={handleUpload1} onUndo1={handleUndo1} onReset1={handleReset1}
           preview2={preview2} history2={history2} chartResult2={chartResult2}
           onUpload2={handleUpload2} onUndo2={handleUndo2} onReset2={handleReset2}
+          hybridResult={hybridResult}
         />
       </div>
     </div>

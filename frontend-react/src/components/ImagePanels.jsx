@@ -202,13 +202,15 @@ function ImageRow({ label, preview, history, chartResult, onUpload, onUndo, onRe
 }
 
 /* ─── Hybrid layout ────────────────────────────────────────────────────────── */
-function HybridLayout({ preview1, onUpload1, preview2, onUpload2, history1, history2 }) {
+function HybridLayout({ preview1, onUpload1, preview2, onUpload2, history1, history2, hybridResult }) {
     const containerRef = useRef();
+    // The inputs should display the latest edited image (Hybrid is no longer in history, so we just take the last result)
     const result1 = [...history1].reverse().find(h => h.result);
     const result2 = [...history2].reverse().find(h => h.result);
     const effPrev1 = result1 ? `data:image/png;base64,${result1.result}` : preview1;
     const effPrev2 = result2 ? `data:image/png;base64,${result2.result}` : preview2;
-    const hybridEntry = history1.at(-1) ?? history2.at(-1) ?? null;
+
+    const hybridEntry = hybridResult ? { result: hybridResult } : null;
 
     return (
         <div className="hybrid-layout">
@@ -242,6 +244,7 @@ function ImagePanels({
     operation,
     preview1, history1, chartResult1, onUpload1, onUndo1, onReset1,
     preview2, history2, chartResult2, onUpload2, onUndo2, onReset2,
+    hybridResult
 }) {
     return (
         <div className="image-panels">
@@ -249,6 +252,7 @@ function ImagePanels({
                 <HybridLayout
                     preview1={preview1} onUpload1={onUpload1} history1={history1}
                     preview2={preview2} onUpload2={onUpload2} history2={history2}
+                    hybridResult={hybridResult}
                 />
             ) : (
                 <>
