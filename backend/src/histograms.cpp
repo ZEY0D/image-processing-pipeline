@@ -105,10 +105,10 @@ CDF calculateCDF(const Histogram& histogram)
     }
 
     // Running cumulative sum, normalised by the total pixel count
-    long long cumSum = 0;
+    long long cumulativeSum = 0;
     for (int i = 0; i < 256; ++i) {
-        cumSum    += histogram[i];
-        cdf[i]     = static_cast<double>(cumSum) / static_cast<double>(total);
+        cumulativeSum    += histogram[i];
+        cdf[i]     = static_cast<double>(cumulativeSum) / static_cast<double>(total);
     }
 
     return cdf;
