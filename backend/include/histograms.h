@@ -54,23 +54,6 @@ namespace hist {
      */
     CDF calculateCDF(const Histogram& histogram);
 
-    /**
-     * @brief Render a three-panel histogram + CDF plot and display / save it.
-     *
-     * Produces one horizontal strip containing three sub-panels (R, G, B).
-     * Each panel shows:
-     *   - A bar histogram drawn with cv::rectangle.
-     *   - The corresponding CDF overlaid as a connected polyline with cv::line.
-     *
-     * @param bgrImage      Input BGR color image (CV_8UC3).
-     * @param windowTitle   Window title used for cv::imshow.
-     * @param saveFilename  If non-empty the plot is saved to this path.
-     * @return              The rendered plot as a cv::Mat (CV_8UC3).
-     */
-    cv::Mat plotHistogramsAndCDF(const cv::Mat& bgrImage,
-                                 const std::string& windowTitle  = "Histogram & CDF",
-                                 const std::string& saveFilename = "");
-
 }
 
 #endif // HISTOGRAMS_H

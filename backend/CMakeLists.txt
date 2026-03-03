@@ -22,7 +22,6 @@ set(SOURCES
     src/filters.cpp
     src/edge_detection.cpp
     src/histograms.cpp
-    src/histogram_draw.cpp
     src/enhance.cpp
     src/frequency_filters.cpp
     src/base64.cpp
