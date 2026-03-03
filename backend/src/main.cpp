@@ -216,51 +216,64 @@ int main() {
                 // Convert back to 3-channel so the frontend can display normally
                 cvtColor(gray, result, COLOR_GRAY2BGR);
             }
-// -------- Frequency Domain (Single Image) --------
-else if (operation == "frequency_lpf") {
-    Mat gray;
-    cvtColor(img, gray, COLOR_BGR2GRAY);
-    Mat filtered = freq::applyLowPassFilter(gray);
-    cvtColor(filtered, result, COLOR_GRAY2BGR);
-}
-else if (operation == "frequency_hpf") {
-    Mat gray;
-    cvtColor(img, gray, COLOR_BGR2GRAY);
-    Mat filtered = freq::applyHighPassFilter(gray);
-    cvtColor(filtered, result, COLOR_GRAY2BGR);
-}
-// -------- Hybrid Image --------
-else if (operation == "hybrid_image") {
-    // Get second image
-    string image2B64 = body.value("image2", "");
-    if (image2B64.empty()) {
-        return corsResponse(400, R"({"error":"Missing 'image2' field for hybrid image"})");
-    }
-    
-    Mat img2 = base64ToMat(image2B64);
-    if (img2.empty()) {
-        return corsResponse(400, R"({"error":"Could not decode second image"})");
-    }
-    
-    // Get filter parameters
-    string filterType1 = body.value("filterType1", "lowpass");
-    string filterType2 = body.value("filterType2", "highpass");
-    
-    // Convert to enum
-    freq::FilterType ft1 = (filterType1 == "lowpass") ? freq::FilterType::LOW_PASS : 
-                          (filterType1 == "highpass") ? freq::FilterType::HIGH_PASS : 
-                          freq::FilterType::NONE;
-    
-    freq::FilterType ft2 = (filterType2 == "lowpass") ? freq::FilterType::LOW_PASS : 
-                          (filterType2 == "highpass") ? freq::FilterType::HIGH_PASS : 
-                          freq::FilterType::NONE;
-    
-    // Create hybrid image
-    Mat hybrid = freq::createHybridImage(img, img2, ft1, ft2);
-    
-    // Convert back to 3-channel for display
-    cvtColor(hybrid, result, COLOR_GRAY2BGR);
-}
+            // -------- Frequency Domain (Spatial Output) --------
+            else if (operation == "frequency_lpf") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                Mat filtered = freq::applyLowPassFilter(gray);
+                cvtColor(filtered, result, COLOR_GRAY2BGR);
+            }
+            else if (operation == "frequency_hpf") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                Mat filtered = freq::applyHighPassFilter(gray);
+                cvtColor(filtered, result, COLOR_GRAY2BGR);
+            }
+            // -------- Frequency Domain (Spectrum Visualization) --------
+            else if (operation == "frequency_lpf_spectrum") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                Mat spectrum = freq::visualizeLowPassSpectrum(gray);
+                cvtColor(spectrum, result, COLOR_GRAY2BGR);
+            }
+            else if (operation == "frequency_hpf_spectrum") {
+                Mat gray;
+                cvtColor(img, gray, COLOR_BGR2GRAY);
+                Mat spectrum = freq::visualizeHighPassSpectrum(gray);
+                cvtColor(spectrum, result, COLOR_GRAY2BGR);
+            }
+            // -------- Hybrid Image --------
+            else if (operation == "hybrid_image") {
+                // Get second image
+                string image2B64 = body.value("image2", "");
+                if (image2B64.empty()) {
+                    return corsResponse(400, R"({"error":"Missing 'image2' field for hybrid image"})");
+                }
+                
+                Mat img2 = base64ToMat(image2B64);
+                if (img2.empty()) {
+                    return corsResponse(400, R"({"error":"Could not decode second image"})");
+                }
+                
+                // Get filter parameters
+                string filterType1 = body.value("filterType1", "lowpass");
+                string filterType2 = body.value("filterType2", "highpass");
+                
+                // Convert to enum
+                freq::FilterType ft1 = (filterType1 == "lowpass") ? freq::FilterType::LOW_PASS : 
+                                      (filterType1 == "highpass") ? freq::FilterType::HIGH_PASS : 
+                                      freq::FilterType::NONE;
+                
+                freq::FilterType ft2 = (filterType2 == "lowpass") ? freq::FilterType::LOW_PASS : 
+                                      (filterType2 == "highpass") ? freq::FilterType::HIGH_PASS : 
+                                      freq::FilterType::NONE;
+                
+                // Create hybrid image
+                Mat hybrid = freq::createHybridImage(img, img2, ft1, ft2);
+                
+                // Convert back to 3-channel for display
+                cvtColor(hybrid, result, COLOR_GRAY2BGR);
+            }
             else {
                 json err;
                 err["error"] = "Unknown operation: " + operation;
@@ -285,6 +298,22 @@ else if (operation == "hybrid_image") {
         }
     });
 
+    // Simple status endpoint
+CROW_ROUTE(app, "/")([]() {
+    crow::response res(200, R"({"status":"running","message":"Image Processing API","endpoint":"/process"})");
+    res.headers.emplace("Access-Control-Allow-Origin", "*");
+    res.headers.emplace("Content-Type", "application/json");
+    return res;
+});
+
+// OPTIONS handler for root
+CROW_ROUTE(app, "/").methods("OPTIONS"_method)([]() {
+    crow::response res(204);
+    res.headers.emplace("Access-Control-Allow-Origin", "*");
+    res.headers.emplace("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.headers.emplace("Access-Control-Allow-Headers", "Content-Type, Accept");
+    return res;
+});
     cout << "Server running at http://127.0.0.1:18080" << endl;
     app.port(18080).multithreaded().run();
 }

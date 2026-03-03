@@ -89,7 +89,11 @@ function Controls({
         <option value="normalize">Normalize</option>
         <option value="equalize">Equalize</option>
         <option value="grayscale">RGB to Grayscale</option>
-        <option value="frequency">Hybrid Image (Frequency Mixing)</option>
+        <option value="frequency_lpf">Low-Pass Filter</option>
+        <option value="frequency_hpf">High-Pass Filter</option>
+        <option value="frequency_lpf_spectrum">Low-Pass Spectrum (Frequency Domain)</option>
+        <option value="frequency_hpf_spectrum">High-Pass Spectrum (Frequency Domain)</option>
+        <option value="frequency">Hybrid Image</option>
       </select>
 
       {/* Analysis Tools — separate dropdown */}

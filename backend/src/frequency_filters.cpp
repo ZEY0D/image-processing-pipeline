@@ -83,7 +83,7 @@ static cv::Mat enhanceHighPass(const cv::Mat& floatImg)
 }
 
 /**
- * @brief Convert float image back to 8-bit grayscale
+ * @brief Convert float image back to 8-bit displayable image
  */
 static cv::Mat toUint8(const cv::Mat& floatImg, bool isHighPass = false)
 {
@@ -103,6 +103,7 @@ static cv::Mat toUint8(const cv::Mat& floatImg, bool isHighPass = false)
         
         cv::Mat normalized;
         if (maxVal - minVal > 1e-9) {
+            //subtract the minimum so the lowest value becomes 0, then divide by the range so the highest becomes 1.
             normalized = (floatImg - minVal) / (maxVal - minVal);
         } else {
             normalized = floatImg.clone();
@@ -112,6 +113,34 @@ static cv::Mat toUint8(const cv::Mat& floatImg, bool isHighPass = false)
         normalized.convertTo(output, CV_8UC1, 255.0);
         return output;
     }
+}
+
+/**
+ * @brief Convert complex spectrum to magnitude spectrum for visualization
+ */
+static cv::Mat spectrumToMagnitude(const cv::Mat& complexSpectrum)
+{
+    CV_Assert(complexSpectrum.type() == CV_32FC2);
+    
+    // Split into real and imaginary parts
+    std::vector<cv::Mat> planes;
+    cv::split(complexSpectrum, planes);
+    
+    // Compute magnitude: sqrt(Re^2 + Im^2)
+    cv::Mat magnitude;
+    cv::magnitude(planes[0], planes[1], magnitude);
+    
+    // Add 1 to avoid log(0)
+    magnitude += 1.0f;
+    
+    // Take log for better visualization
+    cv::Mat logMagnitude;
+    cv::log(magnitude, logMagnitude);
+    
+    // Normalize to 0-1 range
+    cv::normalize(logMagnitude, logMagnitude, 0, 1, cv::NORM_MINMAX);
+    
+    return logMagnitude;
 }
 
 // -----------------------------------------------------------------------------
@@ -129,6 +158,7 @@ static void multiplyComplexByRealMask(cv::Mat& complexMat, const cv::Mat& realMa
         
         for (int col = 0; col < complexMat.cols; ++col) {
             const float m  = mRow[col];
+            //Both parts of each complex number get multiplied by the mask value 
             cRow[col][0]  *= m;
             cRow[col][1]  *= m;
         }
@@ -137,6 +167,7 @@ static void multiplyComplexByRealMask(cv::Mat& complexMat, const cv::Mat& realMa
 
 // -----------------------------------------------------------------------------
 // Build frequency mask
+// this creates a grid of values 0-1 the same size as the image.
 // -----------------------------------------------------------------------------
 static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
 {
@@ -145,14 +176,14 @@ static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
     const double cy = rows / 2.0;
     const double cx = cols / 2.0;
     
-    // Calculate the maximum distance from center
+    // Calculate the maximum distance from center to current pixel position
     const double maxDist = std::sqrt(cy * cy + cx * cx);
     
     if (isLowPass) {
         // Low-pass: keep only very low frequencies
         const double cutoffDist = maxDist * 0.15; // Increased a bit for more structure
         const double transitionWidth = cutoffDist * 0.3;
-        
+        // Between 15% and 19.5% (the transition zone), gradually fade out using a cosine curve
         for (int u = 0; u < rows; ++u) {
             float* rowPtr = mask.ptr<float>(u);
             for (int v = 0; v < cols; ++v) {
@@ -173,7 +204,7 @@ static cv::Mat buildFrequencyMask(int rows, int cols, bool isLowPass)
         }
     } else {
         // High-pass: keep high frequencies, but with a smoother transition
-        const double stopDist = maxDist * 0.25; // Block more low frequencies
+        const double stopDist = maxDist * 0.25; // remove everything within 25% of center (the low frequencies)
         const double transitionWidth = stopDist * 0.5;
         
         for (int u = 0; u < rows; ++u) {
@@ -208,18 +239,21 @@ void fourierShift(std::vector<cv::Mat>& planes)
     for (cv::Mat& plane : planes) {
         CV_Assert(plane.type() == CV_32FC1 || plane.type() == CV_32FC2);
 
+        //rounds down to the nearest even number to ensure the image can be split exactly in half.
         const int rows = plane.rows & -2;
         const int cols = plane.cols & -2;
 
         const int halfR = rows / 2;
         const int halfC = cols / 2;
-
+        
+        //Splits the image into four quadrants.
         cv::Mat q1 = plane(cv::Rect(0,     0,     halfC, halfR));
         cv::Mat q2 = plane(cv::Rect(halfC, 0,     halfC, halfR));
         cv::Mat q3 = plane(cv::Rect(0,     halfR, halfC, halfR));
         cv::Mat q4 = plane(cv::Rect(halfC, halfR, halfC, halfR));
 
         cv::Mat tmp;
+        //Swaps opposite corners using a temporary holding variable
         q1.copyTo(tmp); q4.copyTo(q1); tmp.copyTo(q4);
         q2.copyTo(tmp); q3.copyTo(q2); tmp.copyTo(q3);
     }
@@ -230,6 +264,61 @@ void fourierShift(std::vector<cv::Mat>& planes)
 // =============================================================================
 
 static cv::Mat applyFrequencyFilterFloat(const cv::Mat& floatGray, bool isLowPass)
+{
+    CV_Assert(floatGray.type() == CV_32FC1);
+
+    const int origRows = floatGray.rows;
+    const int origCols = floatGray.cols;
+
+    // Step 1: Pad to optimal DFT size
+    const int padRows = cv::getOptimalDFTSize(origRows);
+    const int padCols = cv::getOptimalDFTSize(origCols);
+
+    cv::Mat padded;
+    cv::copyMakeBorder(floatGray, padded,
+                       0, padRows - origRows,
+                       0, padCols - origCols,
+                       cv::BORDER_CONSTANT, cv::Scalar::all(0));
+
+    // Step 2: Forward DFT
+    //decomposes the image into its frequency components 
+    cv::Mat complexSpectrum;
+    cv::dft(padded, complexSpectrum, cv::DFT_COMPLEX_OUTPUT);
+
+    // Step 3: Fourier shift
+    //Moves the DC component to the center
+    std::vector<cv::Mat> planes = { complexSpectrum };
+    fourierShift(planes);
+    complexSpectrum = planes[0];
+
+    // Step 4: Build frequency mask
+    cv::Mat mask = buildFrequencyMask(complexSpectrum.rows,
+                                      complexSpectrum.cols,
+                                      isLowPass);
+
+    // Step 5: Apply mask
+    multiplyComplexByRealMask(complexSpectrum, mask);
+
+    // Step 6: Inverse Fourier shift
+    planes = { complexSpectrum };
+    fourierShift(planes);
+    complexSpectrum = planes[0];
+
+    // Step 7: Inverse DFT
+    cv::Mat spatialResult;
+    cv::idft(complexSpectrum, spatialResult,
+             cv::DFT_REAL_OUTPUT | cv::DFT_SCALE);
+
+    // Step 8: Removes the padding added in step 1
+    cv::Mat cropped = spatialResult(cv::Rect(0, 0, origCols, origRows)).clone();
+
+    return cropped;
+}
+
+/**
+ * @brief Apply frequency filter and return the filtered magnitude spectrum
+ */
+static cv::Mat getFilteredSpectrumFloat(const cv::Mat& floatGray, bool isLowPass)
 {
     CV_Assert(floatGray.type() == CV_32FC1);
 
@@ -263,20 +352,14 @@ static cv::Mat applyFrequencyFilterFloat(const cv::Mat& floatGray, bool isLowPas
     // Step 5: Apply mask
     multiplyComplexByRealMask(complexSpectrum, mask);
 
-    // Step 6: Inverse Fourier shift
-    planes = { complexSpectrum };
-    fourierShift(planes);
-    complexSpectrum = planes[0];
+    // Step 6: Convert to magnitude spectrum for visualization
+    cv::Mat magnitude = spectrumToMagnitude(complexSpectrum);
 
-    // Step 7: Inverse DFT
-    cv::Mat spatialResult;
-    cv::idft(complexSpectrum, spatialResult,
-             cv::DFT_REAL_OUTPUT | cv::DFT_SCALE);
+    // Step 7: Resize back to original dimensions
+    cv::Mat resized;
+    cv::resize(magnitude, resized, cv::Size(origCols, origRows));
 
-    // Step 8: Crop back
-    cv::Mat cropped = spatialResult(cv::Rect(0, 0, origCols, origRows)).clone();
-
-    return cropped;
+    return resized;
 }
 
 cv::Mat applyLowPassFilter(const cv::Mat& grayImage)
@@ -299,16 +382,35 @@ cv::Mat applyHighPassFilter(const cv::Mat& grayImage)
     return toUint8(floatResult, true);
 }
 
+cv::Mat visualizeLowPassSpectrum(const cv::Mat& grayImage)
+{
+    if (grayImage.empty()) {
+        throw std::invalid_argument("visualizeLowPassSpectrum: input image is empty.");
+    }
+    cv::Mat floatGray = toFloat(grayImage);
+    cv::Mat magnitude = getFilteredSpectrumFloat(floatGray, true);
+    
+    cv::Mat output;
+    magnitude.convertTo(output, CV_8UC1, 255.0);
+    return output;
+}
+
+cv::Mat visualizeHighPassSpectrum(const cv::Mat& grayImage)
+{
+    if (grayImage.empty()) {
+        throw std::invalid_argument("visualizeHighPassSpectrum: input image is empty.");
+    }
+    cv::Mat floatGray = toFloat(grayImage);
+    cv::Mat magnitude = getFilteredSpectrumFloat(floatGray, false);
+    
+    cv::Mat output;
+    magnitude.convertTo(output, CV_8UC1, 255.0);
+    return output;
+}
+
 // =============================================================================
 // Task 10 — Hybrid Image
 // =============================================================================
-
-cv::Mat createHybridImage(const cv::Mat& img1, const cv::Mat& img2)
-{
-    return createHybridImage(img1, img2, 
-                            FilterType::LOW_PASS, 
-                            FilterType::HIGH_PASS);
-}
 
 cv::Mat createHybridImage(const cv::Mat& img1, 
                           const cv::Mat& img2,
@@ -361,8 +463,6 @@ cv::Mat createHybridImage(const cv::Mat& img1,
     cv::Mat blended;
     
     if (filterType1 == FilterType::LOW_PASS && filterType2 == FilterType::HIGH_PASS) {
-        // Classic hybrid: low-pass on img1, high-pass on img2
-        // But we want the cat edges to be very visible
         
         // First, enhance the high-pass result
         cv::Mat enhancedHP = enhanceHighPass(processed2);

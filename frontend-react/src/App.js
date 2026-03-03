@@ -8,7 +8,12 @@ const OP_LABELS = {
   noise: 'Noise', filter: 'Filter', edge: 'Edge',
   histogram: 'Histogram', cdf: 'CDF',
   normalize: 'Normalize', equalize: 'Equalize',
-  grayscale: 'Grayscale', frequency: 'Hybrid',
+  grayscale: 'Grayscale', 
+  frequency_lpf: 'Low-Pass Filter (Freq)',
+  frequency_hpf: 'High-Pass Filter (Freq)',
+  frequency_lpf_spectrum: 'Low-Pass Spectrum',
+  frequency_hpf_spectrum: 'High-Pass Spectrum',
+  frequency: 'Hybrid',
 };
 
 // These operations produce charts, not editable results — they don't go into history
@@ -84,6 +89,10 @@ function App() {
       case 'normalize': return 'normalize';
       case 'equalize': return 'equalize';
       case 'grayscale': return 'grayscale';
+      case 'frequency_lpf': return 'frequency_lpf';
+      case 'frequency_hpf': return 'frequency_hpf';
+      case 'frequency_lpf_spectrum': return 'frequency_lpf_spectrum';
+      case 'frequency_hpf_spectrum': return 'frequency_hpf_spectrum';
       case 'frequency': return 'hybrid_image';
       default: return uiOp;
     }

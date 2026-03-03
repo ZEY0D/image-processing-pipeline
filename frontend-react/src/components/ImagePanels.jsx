@@ -215,9 +215,9 @@ function HybridLayout({ preview1, onUpload1, preview2, onUpload2, history1, hist
     return (
         <div className="hybrid-layout">
             <div className="hybrid-inputs">
-                <div className="hybrid-input-label">Image 1 (Low-pass)</div>
+                <div className="hybrid-input-label">Image 1 </div>
                 <UploadSlot label="Click or drop Image 1" preview={effPrev1} onUpload={onUpload1} />
-                <div className="hybrid-input-label" style={{ marginTop: 10 }}>Image 2 (High-pass)</div>
+                <div className="hybrid-input-label" style={{ marginTop: 10 }}>Image 2 </div>
                 <UploadSlot label="Click or drop Image 2" preview={effPrev2} onUpload={onUpload2} />
             </div>
             <Arrow />
